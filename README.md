@@ -52,7 +52,7 @@ JOIN (
 ) customer_count ON s.store_id = customer_count.store_id;
 ```
 
-![1.1](img/1.1-HW-12-04)
+![1.1](img/1.1-HW-12-04.png)
 
 ---
 
@@ -76,7 +76,7 @@ WHERE length > (SELECT AVG(length) FROM film);
 
 ```
 
-![advance](img/1.2-HW-12-04)
+![advance](img/1.2-HW-12-04.png)
 
 --- 
 
@@ -88,7 +88,7 @@ WHERE length > (SELECT AVG(length) FROM film);
 
 ### Решение
 
-![1.3](img/1.3-HW-12-04)
+![1.3](img/1.3-HW-12-04.png)
 
 ---
 
@@ -100,7 +100,7 @@ WHERE length > (SELECT AVG(length) FROM film);
 
 ### Решение
 
-![1.4](img/1.4-HW-12-04)
+![1.4](img/1.4-HW-12-04.png)
 
 ---
 
@@ -112,7 +112,7 @@ WHERE length > (SELECT AVG(length) FROM film);
 
 ### Решение
 
-![1.5](img/1.5-HW-12-04
+![1.5](img/1.5-HW-12-04.png)
 
 ---
 ---
@@ -130,9 +130,9 @@ ssh <USER>@IP-addr
 
 Проверим команду что не получалась в IDE.
 
-![terminal](img/1.6-HW-12-04
+![terminal](img/1.6-HW-12-04.png)
 
-### Вывод - не глюк IDE, что то не так, - разберусь что это важно!!!
+### Вывод - не глюк IDE, что то не так, - разберусь что, это важно!!!
 
 ---
 ---
