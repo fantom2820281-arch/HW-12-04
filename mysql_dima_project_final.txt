@@ -1,0 +1,183 @@
+================================================================================
+ПРОЕКТ: sakila + MySQL + Workbench + VM
+Автор: Дима
+Цель: Выполнить ДЗ, систематизировать знания по SQL, настроить окружение
+Дата: 2026-05-21
+================================================================================
+
+1. ОКРУЖЕНИЕ (что у нас было)
+--------------------------------------------------------------------------------
+- Виртуальная машина: Ubuntu 24.04, IP 192.168.56.30 (или 192.168.121.104)
+- MySQL: установлен, база sakila загружена
+- Пользователи MySQL:
+    root@localhost  (админ, пароль может быть не задан или задан)
+    admin@localhost (создан тобой, пароль admin) — вероятно, использовался в Workbench
+- Подключение в Workbench:
+    Standard TCP/IP over SSH  или  Standard TCP/IP
+    SSH: vagrant@IP_vm, ключ из vagrant ssh-config
+    MySQL: admin / admin
+
+2. ПРАВИЛО, КОТОРОЕ МЫ ПОНЯЛИ (ВАЖНО!)
+--------------------------------------------------------------------------------
+В MySQL со строгим режимом (sql_mode=only_full_group_by) НЕЛЬЗЯ:
+    - Использовать алиас в GROUP BY
+    - Использовать в SELECT поле, которое не входит в GROUP BY и не агрегировано
+    - Группировать по выражению, а в SELECT брать отдельные его части без агрегации
+
+Правильно: повторять выражение в GROUP BY или использовать подзапрос.
+
+3. ЗАДАНИЕ 1 (магазин с >300 покупателей)
+--------------------------------------------------------------------------------
+-- Подзапрос: сначала считаем покупателей по магазинам, отсекаем >300
+SELECT 
+    s.store_id,
+    st.first_name,
+    st.last_name,
+    c.city,
+    cust_cnt.cnt
+FROM store s
+JOIN staff st ON s.manager_staff_id = st.staff_id
+JOIN address a ON s.address_id = a.address_id
+JOIN city c ON a.city_id = c.city_id
+JOIN (
+    SELECT store_id, COUNT(*) AS cnt
+    FROM customer
+    GROUP BY store_id
+    HAVING COUNT(*) > 300
+) cust_cnt ON s.store_id = cust_cnt.store_id;
+
+4. ЗАДАНИЕ 2 (фильмы длиннее среднего)
+--------------------------------------------------------------------------------
+SELECT COUNT(*) AS films_longer_than_avg
+FROM film
+WHERE length > (SELECT AVG(length) FROM film);
+
+5. ЗАДАНИЕ 3 (месяц с наибольшей суммой платежей + кол-во аренд)
+--------------------------------------------------------------------------------
+-- !!! ВНИМАНИЕ: этот запрос НЕ РАБОТАЕТ в строгом режиме (ERROR 1055):
+/*
+SELECT 
+    DATE_FORMAT(payment_date, '%M %Y') AS month_name,
+    SUM(amount) AS total_amount,
+    COUNT(rental_id) AS total_rentals
+FROM payment
+GROUP BY EXTRACT(YEAR_MONTH FROM payment_date)   -- здесь ОШИБКА: month_name не в GROUP BY
+ORDER BY total_amount DESC
+LIMIT 1;
+*/
+
+-- РАБОЧИЙ ВАРИАНТ 1 (повторяем выражение в GROUP BY, в SELECT используем агрегацию)
+SELECT 
+    DATE_FORMAT(payment_date, '%M %Y') AS month_name,
+    SUM(amount) AS total_amount,
+    COUNT(rental_id) AS total_rentals
+FROM payment
+GROUP BY DATE_FORMAT(payment_date, '%Y-%m')   -- или EXTRACT(YEAR_MONTH ...)
+ORDER BY total_amount DESC
+LIMIT 1;
+
+-- РАБОЧИЙ ВАРИАНТ 2 (через подзапрос)
+SELECT 
+    year_month,
+    total_amount,
+    total_rentals
+FROM (
+    SELECT 
+        EXTRACT(YEAR_MONTH FROM payment_date) AS year_month,
+        SUM(amount) AS total_amount,
+        COUNT(rental_id) AS total_rentals
+    FROM payment
+    GROUP BY EXTRACT(YEAR_MONTH FROM payment_date)
+) AS stats
+ORDER BY total_amount DESC
+LIMIT 1;
+
+6. ЗАДАНИЕ 4 (премия продавцам, если продаж >8000)
+--------------------------------------------------------------------------------
+SELECT 
+    st.staff_id,
+    st.first_name,
+    st.last_name,
+    COUNT(p.payment_id) AS sales_count,
+    CASE 
+        WHEN COUNT(p.payment_id) > 8000 THEN 'Да'
+        ELSE 'Нет'
+    END AS bonus
+FROM staff st
+LEFT JOIN payment p ON st.staff_id = p.staff_id
+GROUP BY st.staff_id, st.first_name, st.last_name;
+
+7. ЗАДАНИЕ 5 (фильмы, которые ни разу не брали в аренду)
+--------------------------------------------------------------------------------
+-- Способ 1 (рекомендуется)
+SELECT f.film_id, f.title
+FROM film f
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM rental r
+    JOIN inventory i ON r.inventory_id = i.inventory_id
+    WHERE i.film_id = f.film_id
+);
+
+-- Способ 2 (LEFT JOIN + HAVING)
+SELECT f.film_id, f.title
+FROM film f
+LEFT JOIN inventory i ON f.film_id = i.film_id
+LEFT JOIN rental r ON i.inventory_id = r.inventory_id
+GROUP BY f.film_id, f.title
+HAVING COUNT(r.rental_id) = 0;
+
+8. ОШИБКА ERROR 1055 (42000) и способы её решения
+--------------------------------------------------------------------------------
+Причина: включён sql_mode = only_full_group_by (по умолчанию в MySQL 5.7+)
+Решение (для текущей сессии):
+    SET SESSION sql_mode = '';
+
+Насовсем (не рекомендуется на проде, но для учебы можно):
+    В файле /etc/mysql/mysql.conf.d/mysqld.cnf добавить:
+        sql_mode = ''
+    sudo systemctl restart mysql
+
+Лучший путь: писать запросы, совместимые с ONLY_FULL_GROUP_BY (как в примерах выше).
+
+9. ВОССТАНОВЛЕНИЕ ДОСТУПА К MySQL (если забыл пароль root)
+--------------------------------------------------------------------------------
+1. sudo systemctl stop mysql
+2. sudo mysqld_safe --skip-grant-tables &
+3. mysql -u root
+4. FLUSH PRIVILEGES;
+5. ALTER USER 'root'@'localhost' IDENTIFIED BY 'новый_пароль';
+6. sudo systemctl restart mysql
+
+10. ПОЛЕЗНЫЕ КОМАНДЫ ДЛЯ ТЕРМИНАЛА (внутри VM)
+--------------------------------------------------------------------------------
+# Посмотреть статус MySQL
+sudo systemctl status mysql
+
+# Зайти в MySQL как определённый пользователь
+mysql -u admin -p
+
+# Посмотреть текущего пользователя в MySQL
+SELECT CURRENT_USER();
+
+# Посмотреть все базы данных
+SHOW DATABASES;
+
+# Переключиться на sakila
+USE sakila;
+
+# Показать таблицы
+SHOW TABLES;
+
+# Выполнить запрос из файла (если файл есть на VM)
+mysql -u admin -p sakila < query.sql
+
+
+--------------------------------------------------------------------------------
+- Развернуть всё в облаке (когда интернет будет нормальный)
+- Структурировать блокноты
+- Практиковаться с терминалом, избегая ложных срабатываний Workbench
+
+================================================================================
+21.05.2026
+================================================================================
