@@ -66,30 +66,15 @@ ORDER BY total_amount DESC
 LIMIT 1;
 */
 
--- РАБОЧИЙ ВАРИАНТ 1 (повторяем выражение в GROUP BY, в SELECT используем агрегацию)
-SELECT 
-    DATE_FORMAT(payment_date, '%M %Y') AS month_name,
-    SUM(amount) AS total_amount,
-    COUNT(rental_id) AS total_rentals
-FROM payment
-GROUP BY DATE_FORMAT(payment_date, '%Y-%m')   -- или EXTRACT(YEAR_MONTH ...)
-ORDER BY total_amount DESC
-LIMIT 1;
+Ошибка во второй строке пропадает если писать запрос без алиаса. 
 
--- РАБОЧИЙ ВАРИАНТ 2 (через подзапрос)
 SELECT 
-    year_month,
-    total_amount,
-    total_rentals
-FROM (
-    SELECT 
-        EXTRACT(YEAR_MONTH FROM payment_date) AS year_month,
-        SUM(amount) AS total_amount,
-        COUNT(rental_id) AS total_rentals
-    FROM payment
-    GROUP BY EXTRACT(YEAR_MONTH FROM payment_date)
-) AS stats
-ORDER BY total_amount DESC
+    EXTRACT(YEAR_MONTH FROM payment_date),
+    SUM(amount),
+    COUNT(rental_id)
+FROM payment
+GROUP BY EXTRACT(YEAR_MONTH FROM payment_date)
+ORDER BY SUM(amount) DESC
 LIMIT 1;
 
 6. ЗАДАНИЕ 4 (премия продавцам, если продаж >8000)

@@ -88,6 +88,21 @@ WHERE length > (SELECT AVG(length) FROM film);
 
 ### Решение
 
+Вводим запрос
+
+```sql
+
+SELECT 
+    EXTRACT(YEAR_MONTH FROM payment_date),
+    SUM(amount),
+    COUNT(rental_id)
+FROM payment
+GROUP BY EXTRACT(YEAR_MONTH FROM payment_date)
+ORDER BY SUM(amount) DESC
+LIMIT 1;
+
+```
+
 ![1.3](img/1.3-HW-12-04.png)
 
 ---
@@ -100,6 +115,25 @@ WHERE length > (SELECT AVG(length) FROM film);
 
 ### Решение
 
+Выполняем запрос
+
+```sql
+SELECT 
+    staff.staff_id,
+    staff.first_name,
+    staff.last_name,
+    COUNT(payment.payment_id) AS sales_count,
+    CASE 
+        WHEN COUNT(payment.payment_id) > 8000 THEN 'Да'
+        ELSE 'Нет'
+    END AS bonus
+FROM staff
+LEFT JOIN payment ON staff.staff_id = payment.staff_id
+GROUP BY staff.staff_id, staff.first_name, staff.last_name;
+
+```
+
+
 ![1.4](img/1.4-HW-12-04.png)
 
 ---
@@ -111,6 +145,17 @@ WHERE length > (SELECT AVG(length) FROM film);
 ---
 
 ### Решение
+
+```
+SELECT film.film_id, film.title
+FROM film
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM rental
+    JOIN inventory ON rental.inventory_id = inventory.inventory_id
+    WHERE inventory.film_id = film.film_id
+);
+```
 
 ![1.5](img/1.5-HW-12-04.png)
 
@@ -133,6 +178,8 @@ ssh <USER>@IP-addr
 ![terminal](img/1.6-HW-12-04.png)
 
 ### Вывод - не глюк IDE, что то не так, - разберусь что, это важно!!!
+
+
 
 ---
 ---
